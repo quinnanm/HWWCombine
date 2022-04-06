@@ -1,4 +1,4 @@
-HiggsAnalysis-CombinedLimit
+HWWCombine
 ===========================
 
 ## Official documentation
