@@ -45,7 +45,7 @@ Note settings for the datacards need to be specified (mainly in datacardrefs.py)
 
 Here are various useful commands for use in your combine directory.
 
-###For blinded (expected) results:
+**For blinded (expected) results:**
 
 
 for limits/significance
@@ -66,7 +66,7 @@ plotImpacts.py -i impacts.json -o impacts
 
 ```
 
-###For unblinded (observed) results:
+**For unblinded (observed) results:**
 
 
 for limits/significance:
