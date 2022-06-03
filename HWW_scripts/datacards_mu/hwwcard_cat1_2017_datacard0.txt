@@ -1,0 +1,66 @@
+## card: datacards_mu/hwwcard_cat1_2017_datacard0.txt number in set: 0
+#----------------------------------------------#
+#generating datacards. name: hwwcard, self.year2017
+
+#number of cards in set: 1
+
+## number of signals (i), backgrounds (j), and uncertainties (k)
+---
+imax: 1
+jmax: 4
+kmax: *
+---
+
+## input the bdt shape histograms
+---
+shapes * * hwwcard_2017_shapehists.root $CHANNEL_$PROCESS $CHANNEL_$PROCESS_$SYSTEMATIC
+---
+
+## list the bin label and the number of (data) events observed
+---
+bin  cat1_2017
+observation 118
+---
+
+## expected events for signal and all backgrounds in the bins
+---
+bin        cat1_2017    cat1_2017    cat1_2017    cat1_2017    cat1_2017
+process    signal    QCD    wjets    ttbar    other
+process        0        1        2        3        4
+rate       105.046068493    0.638746420228    0.609982039547    10.8862699131    0.35330932674
+---
+
+## list the independent sources of uncertainties, and give their effect (syst. error) on each process and bin
+---
+## statistical uncertainties
+
+cat1_2017_signal_stat      lnN    1.01989889177    -    -    -    -
+cat1_2017_QCD_stat      lnN    -    1.11073498235    -    -    -
+cat1_2017_wjets_stat      lnN    -    -    1.05085000926    -    -
+cat1_2017_ttbar_stat      lnN    -    -    -    1.00783943298    -
+cat1_2017_other_stat      lnN    -    -    -    -    1.02351858823
+
+---
+## systematic uncertainties
+
+cat1_2017_signal_dummysyst      lnN    1.2    -    -    -    -
+cat1_2017_QCD_dummysyst      lnN    -    1.3    -    -    -
+cat1_2017_wjets_dummysyst      lnN    -    -    1.1    -    -
+cat1_2017_ttbar_dummysyst      lnN    -    -    -    1.1    -
+cat1_2017_other_dummysyst      lnN    -    -    -    -    1.1
+
+cat1_2017_signal_dummytagsyst      lnN    1.2    -    -    -    -
+cat1_2017_QCD_dummytagsyst      lnN    -    1.2    -    -    -
+cat1_2017_wjets_dummytagsyst      lnN    -    -    1.2    -    -
+cat1_2017_ttbar_dummytagsyst      lnN    -    -    -    1.2    -
+cat1_2017_other_dummytagsyst      lnN    -    -    -    -    1.2
+
+---
+## shape uncertainties
+
+
+---
+
+cat1_2017 autoMCStats 0 0
+---
+

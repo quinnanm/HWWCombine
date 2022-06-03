@@ -5,24 +5,43 @@ from collections import OrderedDict
 import ROOT as r
 
 class datacardrefs:
-    def __init__(self, year):
+    def __init__(self, year, chan):
         self.year = year
-        
+        self.chan = chan #ele, mu, had
         #shape systematics included  
-        systs = {'proc1':['syst1', 'syst2'], 
-                 'proc2':['syst1', 'syst2'],
-                 'proc3':['syst1', 'syst2']}
-        self.systs=systs
+        # systs = {'proc1':['syst1', 'syst2'], 
+        #          'proc2':['syst1', 'syst2'],
+        #          'proc3':['syst1', 'syst2']}
+        # self.systs=systs
 
         #treename for accessing events
         self.tn = 'Events'
         #variable you are using for histograms/templates:
-        self.var = 'mass'
+        self.var = 'fj_msoftdrop'
+        tageff = {'had':{'signal':'*0.45',
+                         'QCD'   :'*0.01',
+                         'wjets' :'*0.02',
+                         'ttbar' :'*0.04',
+                         'other' :'*0.04',
+                         'data'  :'*0.0'},
+                  'ele':{'signal':'*0.40',
+                         'QCD'   :'*0.002',
+                         'wjets' :'*0.01',
+                         'ttbar' :'*0.002',
+                         'other' :'*0.002',
+                         'data'  :'*0.0'},
+                  'mu':{'signal':'*0.45',
+                        'QCD'   :'*0.0003',
+                        'wjets' :'*0.01',
+                        'ttbar' :'*0.001',
+                        'other' :'*0.001',
+                        'data'  :'*0.0'}}
+        self.tageff = tageff[self.chan]
 
         #histogram settings
-        self.edges = np.array([0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95,  1.0], dtype=np.double)
-        self.nbins = 10
-        self.selrange = [0.0, 1.0]
+        # self.edges = np.array([0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95,  1.0], dtype=np.double)
+        self.nbins = 20
+        self.selrange = [0.0, 350.0]
 
         lumi = {'2016':'35.92',
                 '2017':'41.53',
@@ -30,99 +49,54 @@ class datacardrefs:
         self.lumi = lumi[year]
 
         
-        self.mcprocs = ['proc1', 'proc2', 'proc3']
-        self.processes = ['proc1', 'proc2', 'proc3']
+        self.mcprocs = ['signal', 'QCD', 'wjets', 'ttbar', 'other']
+        self.processes = ['signal', 'QCD', 'wjets', 'ttbar', 'other']
         # self.DDprocname = 'DDBKG'
         # self.processes=['proc1', 'proc2', 'proc3', self.DDprocname]
         
-        self.datafile = 'none'
+        # self.datafile = 'none'
+        self.datafile = '/eos/uscms/store/user/mequinna/boostedhiggs/combinetest_23may22/merged/'+year+'/data_'+chan+'_merged.root'
         #leaving as example of rootfile location
-        self.procfiles={'proc1' :'/eos/uscms/store/user/lpcstop/noreplica/mequinna/NanoAODv6_trees/'+year+'/MC/0lep/maintreeswithsysts/TTTT_'+year+'_merged_0lep_tree.root',
-                        'proc2'  :'/eos/uscms/store/user/lpcstop/noreplica/mequinna/NanoAODv6_trees/'+year+'/MC/0lep/maintreeswithsysts/TTX_'+year+'_merged_0lep_tree.root',
-                        'proc3':'/eos/uscms/store/user/lpcstop/noreplica/mequinna/NanoAODv6_trees/'+year+'/MC/0lep/maintreeswithsysts/minorMC_'+year+'_merged_0lep_tree.root'}
+        self.procfiles={'signal' :'/eos/uscms/store/user/mequinna/boostedhiggs/combinetest_23may22/merged/'+year+'/signal2_'+chan+'_merged.root',
+                        'QCD'    :'/eos/uscms/store/user/mequinna/boostedhiggs/combinetest_23may22/merged/'+year+'/QCD_'+chan+'_merged.root',
+                        'wjets'  :'/eos/uscms/store/user/mequinna/boostedhiggs/combinetest_23may22/merged/'+year+'/wjets_'+chan+'_merged.root',
+                        'ttbar'  :'/eos/uscms/store/user/mequinna/boostedhiggs/combinetest_23may22/merged/'+year+'/ttbar_'+chan+'_merged.root',
+                        'other'  :'/eos/uscms/store/user/mequinna/boostedhiggs/combinetest_23may22/merged/'+year+'/other_'+chan+'_merged.root'}
         
         metfilters   = ' && (goodverticesflag && haloflag && HBHEflag && HBHEisoflag && ecaldeadcellflag && badmuonflag)'
         if year=='2016':
             metfilters =  ' && (goodverticesflag && haloflag && HBHEflag && HBHEisoflag && ecaldeadcellflag && badmuonflag && eeBadScFilterflag)'
         self.metfilters = metfilters
 
-        self.binsels =self.getbinsels('nosys')
-        self.mcsel = self.getsels('nosys',True)
-        self.datasel = self.getsels('nosys',False)
+        self.binsels =self.getbinsels()
+        # self.mcsel = self.getsels('nosys',True)
+        # self.datasel = self.getsels('nosys',False)
 
-    #leaving as example
-    def getsels(self, systyp='nosys', isMC=True):
-        wgtstr = '*weight*btagSF_nosys*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi
-        #preselection:
-        basesel = ' nfunky_leptons==0 && ht_nosys>=700 && nbjets_nosys>=3 && njets_nosys>=9'
-        binsels = self.getbinsels('nosys')
-
-        systsels = {'pileup'   : basesel+self.metfilters+')*weight*btagSF_nosys*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*puWeight',
-                    'trigger' : basesel+self.metfilters+')*weight*btagSF_nosys*puWeight*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*trigSF_',
-                    'btagHF'   : basesel+self.metfilters+')*weight*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*btagSF_btagHF',
-                    'btagLF'   : basesel+self.metfilters+')*weight*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*btagSF_btagLF',
-                    'isr'      : basesel+self.metfilters+')*weight*btagSF_nosys*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*isr_',
-                    'fsr'      : basesel+self.metfilters+')*weight*btagSF_nosys*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*fsr_',
-                    'ME'      : basesel+self.metfilters+')*weight*btagSF_nosys*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*MErn_',
-                    'pdf'      : basesel+self.metfilters+')*weight*btagSF_nosys*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*pdfrn_',
-                    'btagHFstats1'   : basesel+self.metfilters+')*weight*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*btagSF_btagHFstats1',
-                    'btagLFstats1'   : basesel+self.metfilters+')*weight*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*btagSF_btagLFstats1',
-                    'btagHFstats2'   : basesel+self.metfilters+')*weight*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*btagSF_btagHFstats2',
-                    'btagLFstats2'   : basesel+self.metfilters+')*weight*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*btagSF_btagLFstats2',
-                    'btagCFerr1'   : basesel+self.metfilters+')*weight*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*btagSF_btagCFerr1',
-                    'btagCFerr2'   : basesel+self.metfilters+')*weight*puWeight*trigSF_nosys*bsWSF_nosys*bsTopSF_nosys*'+self.lumi+'*btagSF_btagCFerr2',
-                    'DeepAK8TopSF' : basesel+self.metfilters+')*weight*btagSF_nosys*puWeight*trigSF_nosys*bsWSF_nosys*'+self.lumi+'*bsTopSF_DeepAK8TopSF_',
-                    'DeepAK8WSF' : basesel+self.metfilters+')*weight*btagSF_nosys*puWeight*trigSF_nosys*bsTopSF_nosys*'+self.lumi+'*bsWSF_DeepAK8WSF_',
-        } 
         
-
-        if systyp =='nosys':
-            if not isMC:
-                sel = basesel+self.metfilters+')'#trigcorr
-                return sel
-            elif isMC:
-                sel = basesel+self.metfilters+')'+wgtstr
-                return sel
-
-        elif systyp not in ['jer','jes']:
-            systselup = systsels[systyp]+'Up'
-            systseldown = systsels[systyp]+'Down'
-            return [systselup, systseldown], [binsels, binsels]
-
-        elif systyp in ['jer','jes']:
-            sel= []; binsels=[]
-            updown=['Up','Down']
-            for ud in updown:
-                syst=systyp+ud
-                wgtstr = '*weight*btagSF_'+syst+'*puWeight*trigSF_'+syst+'*bsWSF_'+syst+'*bsTopSF_'+syst+'*'+self.lumi
-                basesel = ' nfunky_leptons==0 && ht_'+syst+'>=700 && nbjets_'+syst+'>=3 && njets_'+syst+'>=9'
-                binsel = self.getbinsels(syst)
-                systsel = basesel+self.metfilters+')'+wgtstr
-                sel.append(systsel)
-                binsels.append(binsel)
-            return sel, binsels
+    #leaving as example
+    def getsels(self, proc, systyp='nosys', isMC=True):
+        # wgtstr = '*tot_weight'
+        wgtstr = '*tot_weight'+self.tageff[proc]
+        #preselection:
+        basesel = 'fj_pt>=300.0'
+        binsels = self.getbinsels()
+        if not isMC:
+            # sel = '('+basesel+')'#trigcorr
+            sel = basesel
+            return sel
+        elif isMC:
+            sel = ''+basesel+')'+wgtstr
+            return sel
 
     # leaving for now as example of how SR categories are set up
-    def getbinsels(self, syst):
-        binsels = {'RT1BT0htbin0':'nrestops_'+syst+'==1 && nbstops_'+syst+'==0 && ht_'+syst+'>=700 && ht_'+syst+'<800',
-                   'RT1BT0htbin1':'nrestops_'+syst+'==1 && nbstops_'+syst+'==0 && ht_'+syst+'>=800 && ht_'+syst+'<900', 
-                   'RT1BT0htbin2':'nrestops_'+syst+'==1 && nbstops_'+syst+'==0 && ht_'+syst+'>=900 && ht_'+syst+'<1000', 
-                   'RT1BT0htbin3':'nrestops_'+syst+'==1 && nbstops_'+syst+'==0 && ht_'+syst+'>=1000 && ht_'+syst+'<1100',
-                   'RT1BT0htbin4':'nrestops_'+syst+'==1 && nbstops_'+syst+'==0 && ht_'+syst+'>=1100 && ht_'+syst+'<1200',
-                   'RT1BT0htbin5':'nrestops_'+syst+'==1 && nbstops_'+syst+'==0 && ht_'+syst+'>=1200 && ht_'+syst+'<1300',
-                   'RT1BT0htbin6':'nrestops_'+syst+'==1 && nbstops_'+syst+'==0 && ht_'+syst+'>=1300 && ht_'+syst+'<1500', 
-                   'RT1BT0htbin7':'nrestops_'+syst+'==1 && nbstops_'+syst+'==0 && ht_'+syst+'>=1500',
-                   'RT1BT1htbin0':'nrestops_'+syst+'==1 && nbstops_'+syst+'>=1 && ht_'+syst+'<1500',
-                   'RT1BT1htbin1':'nrestops_'+syst+'==1 && nbstops_'+syst+'>=1 && ht_'+syst+'>=1500',
-                   'RT2BTALLhtbin0':'nrestops_'+syst+'>=2 && nbstops_'+syst+'>=0 && ht_'+syst+'<1200',
-                   'RT2BTALLhtbin1':'nrestops_'+syst+'>=2 && nbstops_'+syst+'>=0 && ht_'+syst+'>=1200'}
-        return binsels
-    
+    def getbinsels(self):
+        binsels = {'cat1':'fj_msoftdrop>=0.0'}
+        return binsels    
 
     def getyield(self, hist, verbose=False):
         errorVal = r.Double(0)
         minbin=0
-        maxbin=hist.GetNbinsX()+1
+        maxbin=hist.GetNbinsX()+2
         hyield = hist.IntegralAndError(minbin, maxbin, errorVal)
         if verbose:
             print('yield:', round(hyield, 3), '+/-', round(errorVal, 3), '\n')

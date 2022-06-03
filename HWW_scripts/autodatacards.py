@@ -16,8 +16,9 @@ gROOT.SetBatch(True)
 # can run datacards for example using python autodatacards.py -y 2017
 
 parser = argparse.ArgumentParser(description='Datacard information')
-oparser.add_argument("-o", "--outdir",   dest="outdir",   default='./datacards/',                      help="directory to put datacards in")
+parser.add_argument("-o", "--outdir",   dest="outdir",   default='./datacards/',                      help="directory to put datacards in")
 parser.add_argument("-y", "--year",     dest="year",     default='2016',                               help="year")
+parser.add_argument("-c", "--chan",     dest="chan",     default='had',                               help="channel")
 parser.add_argument("-f", "--shapefile",    dest="shapefile",    default='shapehists.root',            help="file where shape histograms are located")
 parser.add_argument("-r", "--remakehists",    dest="remakehists",    default='True',                   help="regenerate shape histograms")
 args = parser.parse_args()
@@ -27,6 +28,8 @@ class autodatacards:
         self.year      = args.year
         self.shapefile = args.shapefile
         self.outdir    = args.outdir
+        self.chan = args.chan
+        self.refs = datacardrefs(self.year, self.chan)
         
         #enabling/disabling automcstats:
         self.usemcbinuncs = True
@@ -37,54 +40,43 @@ class autodatacards:
             remakehists=True
         self.remakehists = remakehists
 
-        #for running all 3 years or just one 
-        fullR2=False
-        if args.year=='RunII':
-            fullR2=True
-        if not fullR2:
-            years = [args.year]
-        elif fullR2:
-            years = ['2016', '2017', '2018']
-        self.years = years
-
         #setup directories
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir); print('Making output directory ', self.outdir)
 
     #organizes set of bins for datacards and sets up card names and output directory
-    def cardsetup(self, year, startbinnum):        
+    def cardsetup(self, startbinnum):        
         #set up datacardrefs
-        refs = datacardrefs(year)
         name = 'hwwcard' #name in your datacards
    
         # get name of output shape rootfile
-        shaperoot = self.outdir+'/'+name+'_'+year+'_'+self.shapefile
+        self.shaperoot = self.outdir+'/'+name+'_'+self.year+'_'+self.shapefile
         cardname = self.outdir+'/'+name
 
         #print info on the datacards you are making
         #this is also text to be put in each datacard in the set
-        header='#----------------------------------------------#\n'+'#generating datacards. name: '+name+', year'+year+'\n'
-        header+='\n'+'#number of cards in set: '+str(len(refs.binsels.keys()))+'\n'
+        header='#----------------------------------------------#\n'+'#generating datacards. name: '+name+', self.year'+self.year+'\n'
+        header+='\n'+'#number of cards in set: '+str(len(self.refs.binsels.keys()))+'\n'
         print(header)
 
         #generate shape histograms:
-        hm = histmaker(year, shaperoot)
+        hm = histmaker(self.year, self.chan, self.shaperoot)
         if (not os.path.exists(self.shaperoot)) or self.remakehists:
             print('generating histograms...')
-            histfile = r.TFile(shaperoot, "RECREATE")
+            histfile = r.TFile(self.shaperoot, "RECREATE")
             histfile.Close()
             del histfile
             yields = hm.makehists()
 
-        shapeline = 'shapes * * '+name+'_'+year+'_'+self.shapefile+' $CHANNEL_$PROCESS $CHANNEL_$PROCESS_$SYSTEMATIC'
+        shapeline = 'shapes * * '+name+'_'+self.year+'_'+self.shapefile+' $CHANNEL_$PROCESS $CHANNEL_$PROCESS_$SYSTEMATIC'
         print(shapeline)
 
         #make cards:
         binnum = startbinnum
-        for chanid, binsel in refs.binsels.iteritems():
-            label=chanid+'_'+year
-            sel = '('+binsel+' &&  '+refs.mcsel
-            makecard(self, cardname, label, year, sel, binnum, header, shapeline, refs, yields)
+        for chanid, binsel in self.refs.binsels.iteritems():
+            label=chanid+'_'+self.year
+            # sel = '('+binsel+' &&  '+self.refs.mcsel
+            self.makecard(cardname, label, binnum, header, shapeline, yields)
             binnum+=1
         return binnum
 
@@ -132,11 +124,11 @@ class autodatacards:
         return table
 
     #creates a single datacard
-    def makecard(self, cardname, binlabel, year, cutstr, nbin, header, shapeline, refs, yields):
+    def makecard(self, cardname, binlabel, nbin, header, shapeline, yields):
         #binlabel is cut#_bin#_year
         #cardfile is for example datacards/RTht5_cut1bin5_datacard.txt
         cardfile = cardname+'_'+binlabel+'_datacard'+str(nbin)+'.txt'
-        procs = refs.processes
+        procs = self.refs.processes
         nprocs = len(procs)
 
         imax = 1#number of final states analyzed (signals)
@@ -145,7 +137,7 @@ class autodatacards:
         unctype  = 'lnN'
 
         print('\n'+binlabel)
-        print('writing', cardfile,'selection:',cutstr)
+        print('writing', cardfile)
 
         # get yields and statistical uncertainties for each process in this bin:
         rates=[]; stats=[]
@@ -158,36 +150,40 @@ class autodatacards:
         obs  = int(round(sum(rates)))
         print('TOTAL B: ', round(sum(rates[1:])))
 
+        
         # put together uncertanties for each process
         shapeuncs = [str(1.0)]*nprocs
+        systuncs = [str(1.2), str(1.3), str(1.1), str(1.1), str(1.1)]
+        systuncs2 = [str(1.2)]*nprocs
         stat_table  = self.unctable(procs, stats, 'stat', 'lnN', binlabel)
-
         shape_table=''
-        syst_table=''
+        syst_table = self.unctable(procs, systuncs, 'dummysyst', 'lnN', binlabel)
+        syst_table2 = self.unctable(procs, systuncs2, 'dummytagsyst', 'lnN', binlabel)
+
         
         #norm uncertainty example:
-        # lumi_line ='lumi_'+year+'   lnN    '+refs.lumiunc+'    '+refs.lumiunc+'    '+refs.lumiunc+'    -    \n'
+        # lumi_line ='lumi_'+year+'   lnN    '+self.refs.lumiunc+'    '+self.refs.lumiunc+'    '+self.refs.lumiunc+'    -    \n'
         # syst_table+=lumi_line
 
         #shape uncertainties - leaving now to show correlation differences
-        corr =[]
-        for proc, systlist in refs.systs.iteritems():
-            for sys in systlist: 
-                if sys not in corr:
-                    corr.append(sys)
-        for sys in corr:
-            if sys=='isr' or sys=='fsr' or sys=='ME' or sys=='pdf':
-                shape_table += sys+'  shape     1.0    -    -    -  \n'  #need to add the right symbol for procs #correlated between years
-            elif sys=='btagLF' or sys=='btagHF' or sys=='btagCFerr1' or sys=='btagCFerr2':
-                shape_table += sys+'  shape     1.0    1.0    1.0    - \n'
-            else: 
-                shape_table += sys+'_'+year+'   shape     1.0   1.0    1.0    - \n'
+        # corr =[]
+        # for proc, systlist in self.refs.systs.iteritems():
+        #     for sys in systlist: 
+        #         if sys not in corr:
+        #             corr.append(sys)
+        # for sys in corr:
+        #     if sys=='isr' or sys=='fsr' or sys=='ME' or sys=='pdf':
+        #         shape_table += sys+'  shape     1.0    -    -    -  \n'  #need to add the right symbol for procs #correlated between years
+        #     elif sys=='btagLF' or sys=='btagHF' or sys=='btagCFerr1' or sys=='btagCFerr2':
+        #         shape_table += sys+'  shape     1.0    1.0    1.0    - \n'
+        #     else: 
+        #         shape_table += sys+'_'+year+'   shape     1.0   1.0    1.0    - \n'
 
         rateline = ''
         procline = ''
         numline = ''
         binuncline = ''
-        if usemcbinuncs:
+        if self.usemcbinuncs:
             thr = 0
             includesig = 0
             binuncline = binlabel+' autoMCStats '+str(thr)+' '+str(includesig)
@@ -196,67 +192,68 @@ class autodatacards:
         #write datacard to file
 
         f = open(cardfile, "w")
-        print('## card: '+cardfile+' number in set: '+str(nbin), file=f)
-        print('##selection: '+cutstr+'*prefirewgt*\n', file=f)
-        print(header, file=f)
-        print('## number of signals (i), backgrounds (j), and uncertainties (k)', file=f)
-        print("---", file=f)
-        print("imax: "+str(imax), file=f)
-        print("jmax: "+str(jmax), file=f)
-        print("kmax: "+str(kmax), file=f)
-        print("---\n", file=f)
+        print>>f, '## card: '+cardfile+' number in set: '+str(nbin)
+        # print>>f, '##selection: '+cutstr+'*prefirewgt*\n'
+        print>>f, header
+        print>>f, '## number of signals (i), backgrounds (j), and uncertainties (k)'
+        print>>f, "---"
+        print>>f, "imax: "+str(imax)
+        print>>f, "jmax: "+str(jmax)
+        print>>f, "kmax: "+str(kmax)
+        print>>f, "---\n"
         # if useshape:
-        print('## input the bdt shape histograms', file=f)
-        print("---", file=f)
-        print(shapeline, file=f)
-        print("---\n", file=f)
-        print('## list the bin label and the number of (data) events observed', file=f)
-        print("---", file=f)
-        print("bin  "+binlabel, file=f)
-        print("observation "+str(obs), file=f)
-        print("---\n", file=f)
-        print('## expected events for signal and all backgrounds in the bins', file=f)
-        print("---", file=f)
-        print("bin    "+(("    "+binlabel)*nprocs), file=f)
+        print>>f, '## input the bdt shape histograms'
+        print>>f, "---"
+        print>>f, shapeline
+        print>>f, "---\n"
+        print>>f, '## list the bin label and the number of (data) events observed'
+        print>>f, "---"
+        print>>f, "bin  "+binlabel
+        print>>f, "observation "+str(obs)
+        print>>f, "---\n"
+        print>>f, '## expected events for signal and all backgrounds in the bins'
+        print>>f, "---"
+        print>>f, "bin    "+(("    "+binlabel)*nprocs)
         for i,p in enumerate(procs):
             procline+=("    "+p)
             numline+=("        "+str(i))
-        print("process"+procline, file=f)
-        print("process"+numline, file=f)
+        print>>f, "process"+procline
+        print>>f, "process"+numline
         for r in rates:
             rateline+=("    "+str(r))
-        print("rate   "+rateline, file=f)   
-        print("---\n", file=f)
+        print>>f, "rate   "+rateline        
+        print>>f, "---\n"
         # if not nounc:
-        print('## list the independent sources of uncertainties, and give their effect (syst. error) on each process and bin', file=f)
-        print("---", file=f)
-        print('## statistical uncertainties\n', file=f)
-        print(stat_table, file=f)
+        print>>f, '## list the independent sources of uncertainties, and give their effect (syst. error) on each process and bin'
+        print>>f, "---"
+        print>>f, '## statistical uncertainties\n'
+        print>>f, stat_table
         # if not nounc:
-        print("---", file=f)
-        print('## systematic uncertainties\n', file=f)
-        print(syst_table, file=f)
+        print>>f, "---"
+        print>>f, '## systematic uncertainties\n'
+        print>>f, syst_table
+        print>>f, syst_table2
         # if useshape:
-        print("---", file=f)
-        print('## shape uncertainties\n', file=f)
-        print(shape_table, file=f)
-        print("---\n", file=f)
-        print(binuncline, file=f)
-        print("---\n", file=f)
+        print>>f, "---"
+        print>>f, '## shape uncertainties\n'
+        print>>f, shape_table
+        print>>f, "---\n"
+        print>>f, binuncline
+        print>>f, "---\n"
     
         f.close()
 
 ####################################################################
 # run cards
 
-cards = autodatacards(self)
+cards = autodatacards(args)
 startbinnum=0
-print('how many years?', len(cards.years))
-for year in cards.years:
-    print('year', year, 'startbinnum', startbinnum)
-    lastbinnum = cards.cardsetup(self, year, startbinnum)
-    print('lastbinnum', lastbinnum)
-    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n')
-    startbinnum=lastbinnum
+# print('how many years?', len(cards.years))
+# for year in cards.years:
+print('year', args.year, 'startbinnum', startbinnum)
+lastbinnum = cards.cardsetup(startbinnum)
+print('lastbinnum', lastbinnum)
+print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n')
+startbinnum=lastbinnum
 

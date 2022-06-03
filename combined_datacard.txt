@@ -1,0 +1,31 @@
+Combination of ./HWW_scripts/datacards_pt450/hwwcard_cat1_2016_datacard0.txt
+imax 1 number of bins
+jmax 4 number of processes minus 1
+kmax 15 number of nuisance parameters
+----------------------------------------------------------------------------------------------------------------------------------
+shapes *    ch1  ./HWW_scripts/datacards_pt450/hwwcard_2016_shapehists.root cat1_2016_$PROCESS cat1_2016_$PROCESS_$SYSTEMATIC
+----------------------------------------------------------------------------------------------------------------------------------
+bin          ch1          
+observation  281123       
+----------------------------------------------------------------------------------------------------------------------------------
+bin                                              ch1            ch1            ch1            ch1            ch1          
+process                                          signal         ttbar          other          wjets          QCD          
+process                                          0              1              2              3              4            
+rate                                             3.1706836037   16.8633070132  8009.13965559  49475.1599445  223618.76424 
+----------------------------------------------------------------------------------------------------------------------------------
+cat1_2016_QCD_dummysyst   lnN                    -              -              -              -              1.3          
+cat1_2016_QCD_dummytagsyst   lnN                 -              -              -              -              1.2          
+cat1_2016_QCD_stat      lnN                      -              -              -              -              1.0013130773 
+cat1_2016_other_dummysyst   lnN                  -              -              1.1            -              -            
+cat1_2016_other_dummytagsyst   lnN               -              -              1.2            -              -            
+cat1_2016_other_stat    lnN                      -              -              1.0010761163   -              -            
+cat1_2016_signal_dummysyst   lnN                 1.2            -              -              -              -            
+cat1_2016_signal_dummytagsyst   lnN              1.2            -              -              -              -            
+cat1_2016_signal_stat   lnN                      1.02829846732  -              -              -              -            
+cat1_2016_ttbar_dummysyst   lnN                  -              1.1            -              -              -            
+cat1_2016_ttbar_dummytagsyst   lnN               -              1.2            -              -              -            
+cat1_2016_ttbar_stat    lnN                      -              1.00372389601  -              -              -            
+cat1_2016_wjets_dummysyst   lnN                  -              -              -              1.1            -            
+cat1_2016_wjets_dummytagsyst   lnN               -              -              -              1.2            -            
+cat1_2016_wjets_stat    lnN                      -              -              -              1.00087180566  -            
+ch1 autoMCStats 0 0 1
